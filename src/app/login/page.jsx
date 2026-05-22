@@ -28,7 +28,7 @@ const ADMIN_EMAIL    = 'admin@verbasacra.com';
 const ADMIN_NAME     = 'Parish Administrator';
 
 // SHA-512 hash of "VerbaSacra@2024" — cannot be reversed back to password
-const ADMIN_PASSWORD_HASH = '38913ce42e58b5777e6a70c13c6f26e7ff4be6e80c9751c749c12e567ad5d7df0e61b2937ef2d917147702ab7806cc72d52677eed0a2f29b44b4f8d32326f0e0';
+const ADMIN_PASSWORD_HASH = 'd8c4dae5731b6328e3e723e1ab76c6955225f729e973c8fd736c6415685909aefccc787204e2f9dff4f9046c2232b549fa4b39e4c9a1dc4f3b8edc54cc61c27d';
 const SALT = 'VerbaSacra_Parish_Salt_2024';
 const SESSION_KEY  = 'vs_admin_session';
 const SESSION_HOURS = 8;
@@ -1012,43 +1012,308 @@ const ManageClergyPage = ({ clergy, setClergy }) => {
   );
 };
 
-const ManageVirtualTourPage = ({ hotspots, setHotspots }) => {
-  const [showForm, setShowForm] = useState(false);
+// ============================================================================
+// 🛡️ ADMIN: MANAGE 3D CHURCH MODEL
+// ============================================================================
+const ManageVirtualTourPage = ({ hotspots: churchSections, setHotspots: setChurchSections }) => {
+  const [view, setView] = useState('list');   // list | form | upload
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ name: '', x: 50, y: 50, info: '', history: '' });
-  const openAdd = () => { setForm({ name: '', x: 50, y: 50, info: '', history: '' }); setEditItem(null); setShowForm(true); };
-  const openEdit = (item) => { setForm({ ...item }); setEditItem(item); setShowForm(true); };
-  const handleSave = () => {
-    if (editItem) setHotspots(prev => prev.map(h => h.id === editItem.id ? { ...form, id: editItem.id } : h));
-    else setHotspots(prev => [...prev, { ...form, id: Date.now() }]);
-    setShowForm(false);
+  const [form, setForm] = useState({
+    name: '', icon: '⛪', desc: '', history: '', color: 'from-blue-900 to-blue-700'
+  });
+
+  const iconOptions = ['⛪','🔔','🏛️','🕍','🌿','🌀','🕯️','✝️','🌹','📿','🏺','⭐'];
+  const colorOptions = [
+    { label: 'Navy',    value: 'from-blue-900 to-blue-700'    },
+    { label: 'Yellow',  value: 'from-yellow-700 to-yellow-900' },
+    { label: 'Teal',    value: 'from-teal-800 to-teal-600'    },
+    { label: 'Indigo',  value: 'from-indigo-800 to-indigo-600' },
+    { label: 'Green',   value: 'from-green-800 to-green-600'  },
+    { label: 'Rose',    value: 'from-rose-800 to-rose-600'    },
+    { label: 'Purple',  value: 'from-purple-800 to-purple-600' },
+    { label: 'Amber',   value: 'from-amber-700 to-amber-900'  },
+  ];
+
+  const openAdd = () => {
+    setForm({ name: '', icon: '⛪', desc: '', history: '', color: 'from-blue-900 to-blue-700' });
+    setEditItem(null); setView('form');
   };
+  const openEdit = (item) => {
+    setForm({ name: item.name, icon: item.icon || '⛪', desc: item.info || item.desc || '', history: item.history || '', color: item.color || 'from-blue-900 to-blue-700' });
+    setEditItem(item); setView('form');
+  };
+  const handleSave = () => {
+    if (!form.name.trim() || !form.desc.trim()) return alert('Please fill in Name and Description.');
+    const entry = { name: form.name, icon: form.icon, info: form.desc, history: form.history, color: form.color, id: editItem?.id || Date.now() };
+    if (editItem) setChurchSections(prev => prev.map(s => s.id === editItem.id ? entry : s));
+    else          setChurchSections(prev => [...prev, entry]);
+    setView('list');
+  };
+  const handleDelete = (id) => {
+    if (confirm('Delete this church section?')) setChurchSections(prev => prev.filter(s => s.id !== id));
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
-      <div className="flex items-center justify-between"><div><h2 className="text-3xl font-serif font-bold text-gray-800">Manage Virtual Tour</h2><p className="text-gray-500 text-sm mt-1">Add or edit church location hotspots</p></div><button onClick={openAdd} className="flex items-center gap-2 px-5 py-2 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition"><Plus size={16} /> Add Hotspot</button></div>
-      <div className="relative rounded-2xl overflow-hidden h-48 shadow-lg" style={{ background: 'linear-gradient(135deg, #1a3a52, #2d5a7b)' }}>
-        <div className="absolute inset-0 flex items-center justify-center"><p className="text-white/20 text-sm">360° Preview</p></div>
-        {hotspots.map(h => <div key={h.id} className="absolute w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center" style={{ left: `${h.x}%`, top: `${h.y}%`, transform: 'translate(-50%,-50%)' }}><MapPin size={14} className="text-white" /></div>)}
-      </div>
-      {showForm && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-          <h3 className="font-serif font-bold text-xl">{editItem ? 'Edit' : 'New'} Hotspot</h3>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2"><label className="block text-sm font-bold mb-2">Location Name *</label><input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm" /></div>
-            <div><label className="block text-sm font-bold mb-2">Position X (0-100)</label><input type="number" min="0" max="100" value={form.x} onChange={e => setForm({...form, x: Number(e.target.value)})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm" /></div>
-            <div><label className="block text-sm font-bold mb-2">Position Y (0-100)</label><input type="number" min="0" max="100" value={form.y} onChange={e => setForm({...form, y: Number(e.target.value)})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm" /></div>
-            <div className="sm:col-span-2"><label className="block text-sm font-bold mb-2">Description</label><input type="text" value={form.info} onChange={e => setForm({...form, info: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm" /></div>
-            <div className="sm:col-span-2"><label className="block text-sm font-bold mb-2">Historical Note</label><textarea value={form.history} onChange={e => setForm({...form, history: e.target.value})} rows={2} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm resize-none" /></div>
+
+      {/* ── LIST VIEW ─────────────────────────────────────────────────── */}
+      {view === 'list' && (
+        <>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-gray-800">Manage 3D Church Model</h2>
+              <p className="text-gray-500 text-sm mt-1">Manage the church section cards shown inside the 3D Basilica page</p>
+            </div>
+            <button onClick={openAdd}
+              className="flex items-center gap-2 px-5 py-2 bg-blue-900 text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition">
+              <Plus size={16} /> Add Section
+            </button>
           </div>
-          <div className="flex gap-3"><button onClick={() => setShowForm(false)} className="flex-1 py-3 border border-gray-200 rounded-xl font-semibold text-gray-600">Cancel</button><button onClick={handleSave} className="flex-1 py-3 bg-gradient-to-r from-blue-900 to-yellow-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:shadow-lg"><Save size={16} /> {editItem ? 'Update' : 'Add'}</button></div>
+
+          {/* 3D Status Banner */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-950 to-blue-900 p-6 text-white">
+            <div className="absolute inset-0 opacity-10" style={{
+              backgroundImage: 'linear-gradient(#d4af37 1px,transparent 1px),linear-gradient(90deg,#d4af37 1px,transparent 1px)',
+              backgroundSize: '30px 30px',
+            }} />
+            <div className="relative flex items-start gap-5">
+              <div className="text-5xl flex-shrink-0">⛪</div>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <p className="font-serif font-bold text-xl">3D Basilica Church Model</p>
+                  <span className="text-xs bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 px-3 py-1 rounded-full font-bold">
+                    🚧 Under Development
+                  </span>
+                </div>
+                <p className="text-blue-200 text-sm leading-relaxed mb-4">
+                  The interactive 3D model is currently being built. Once completed and integrated, parishioners will be able to rotate, zoom, and explore every part of the Basilica. In the meantime, manage the section information cards that will appear alongside the 3D model.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {['🔄 360° Rotation','🔍 Zoom Control','👆 Tap to Explore','🏛️ Full Interior','📱 Mobile Ready'].map((f,i) => (
+                    <span key={i} className="text-xs px-3 py-1 rounded-full font-semibold"
+                      style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(212,175,55,0.3)', color:'rgba(255,255,255,0.75)' }}>
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* What Admin Can Do Info */}
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              { icon: '✏️', title: 'Edit Section Info',   desc: 'Update the name, description, and historical notes for each church section card shown to parishioners.' },
+              { icon: '➕', title: 'Add New Sections',    desc: 'Add new church sections as more areas are added to the 3D model — e.g., Chapel, Sacristy, Bell Tower.' },
+              { icon: '🗑️', title: 'Remove Sections',    desc: 'Delete sections that are no longer relevant or have been removed from the 3D model layout.' },
+            ].map((item, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+                <div className="text-3xl mb-2">{item.icon}</div>
+                <p className="font-serif font-bold text-gray-800 mb-1">{item.title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Upload 3D Model Notice */}
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-5">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl flex-shrink-0">📁</span>
+              <div>
+                <p className="font-bold text-gray-800 mb-1">How to Add the Real 3D Model</p>
+                <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                  When the 3D Basilica model file is ready (in <strong>.glb</strong> or <strong>.obj</strong> format), it will be integrated by the developer directly into the codebase. The admin's job here is to manage the section information cards that appear alongside the model.
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {[
+                    { label: 'Step 1', desc: 'Finish building the 3D church model' },
+                    { label: 'Step 2', desc: 'Export as .glb file' },
+                    { label: 'Step 3', desc: 'Developer integrates it into the website' },
+                    { label: 'Step 4', desc: 'Admin updates section info cards here' },
+                  ].map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-white border border-yellow-200 px-3 py-1.5 rounded-lg">
+                      <span className="w-5 h-5 bg-blue-900 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{i+1}</span>
+                      <span className="text-gray-600">{s.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Church Sections', value: churchSections.length, color: 'text-blue-900' },
+              { label: '3D Model Status', value: 'In Dev', color: 'text-yellow-700' },
+              { label: 'Visible to Public', value: 'Yes', color: 'text-green-700' },
+            ].map((s,i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+                <p className={`text-2xl font-serif font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Section Cards List */}
+          <div>
+            <h3 className="font-serif font-bold text-xl text-gray-800 mb-4">Church Section Cards ({churchSections.length})</h3>
+            {churchSections.length === 0 && (
+              <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
+                <div className="text-6xl mb-3">⛪</div>
+                <p className="font-bold text-gray-700">No sections yet</p>
+                <p className="text-sm text-gray-400 mt-1 mb-5">Add church sections that parishioners can learn about</p>
+                <button onClick={openAdd}
+                  className="px-6 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition">
+                  + Add First Section
+                </button>
+              </div>
+            )}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {churchSections.map((section, i) => (
+                <motion.div key={section.id}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  {/* Card color header */}
+                  <div className={`bg-gradient-to-r ${section.color || 'from-blue-900 to-blue-700'} px-5 py-4 text-white flex items-center justify-between`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{section.icon || '⛪'}</span>
+                      <div>
+                        <p className="font-serif font-bold">{section.name}</p>
+                        <p className="text-white/60 text-xs">Section {i + 1}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(section)}
+                        className="p-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition">
+                        <Edit3 size={14} />
+                      </button>
+                      <button onClick={() => handleDelete(section.id)}
+                        className="p-1.5 bg-white/20 hover:bg-red-500/50 rounded-lg transition">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  {/* Card content */}
+                  <div className="p-4 space-y-2">
+                    <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{section.info || section.desc}</p>
+                    {section.history && (
+                      <p className="text-xs text-gray-400 italic line-clamp-1">📜 {section.history}</p>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── FORM VIEW ─────────────────────────────────────────────────── */}
+      {view === 'form' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setView('list')}
+              className="text-blue-900 hover:bg-blue-50 p-2 rounded-lg transition">
+              <X size={20} />
+            </button>
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-gray-800">
+                {editItem ? 'Edit Church Section' : 'Add New Church Section'}
+              </h2>
+              <p className="text-gray-500 text-sm">This info appears in the card below the 3D model</p>
+            </div>
+          </div>
+
+          {/* Live Preview */}
+          <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${form.color} p-6 text-white`}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+            <div className="relative flex items-start gap-4">
+              <span className="text-4xl flex-shrink-0">{form.icon || '⛪'}</span>
+              <div>
+                <p className="font-serif font-bold text-xl mb-1">{form.name || 'Section Name'}</p>
+                <p className="text-white/80 text-sm leading-relaxed">{form.desc || 'Section description will appear here...'}</p>
+                {form.history && <p className="text-white/60 text-xs mt-2 italic">📜 {form.history}</p>}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-bold mb-2 text-gray-700">Section Name *</label>
+              <input type="text" value={form.name}
+                onChange={e => setForm({...form, name: e.target.value})}
+                placeholder="e.g. Bell Towers, Main Nave, Central Dome"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm" />
+            </div>
+
+            {/* Icon Picker */}
+            <div>
+              <label className="block text-sm font-bold mb-3 text-gray-700">Section Icon</label>
+              <div className="flex flex-wrap gap-3">
+                {iconOptions.map(icon => (
+                  <button key={icon} onClick={() => setForm({...form, icon})}
+                    className={`w-12 h-12 text-2xl rounded-xl border-2 transition
+                      ${form.icon === icon ? 'border-blue-900 bg-blue-50 scale-110' : 'border-gray-200 hover:border-gray-300'}`}>
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Color Picker */}
+            <div>
+              <label className="block text-sm font-bold mb-3 text-gray-700">Card Color</label>
+              <div className="grid grid-cols-4 gap-3">
+                {colorOptions.map(opt => (
+                  <button key={opt.value} onClick={() => setForm({...form, color: opt.value})}
+                    className={`h-11 rounded-xl bg-gradient-to-r ${opt.value} border-4 transition
+                      ${form.color === opt.value ? 'border-yellow-500 scale-105' : 'border-transparent hover:scale-105'}`}
+                    title={opt.label} />
+                ))}
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-bold mb-2 text-gray-700">Description *</label>
+              <p className="text-xs text-gray-400 mb-2">Explain what this part of the church is — parishioners will read this when they click the section card</p>
+              <textarea value={form.desc}
+                onChange={e => setForm({...form, desc: e.target.value})}
+                placeholder="e.g. The twin bell towers flank the main facade, each crowned with a pointed spire and golden cross..."
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm resize-none" />
+              <p className="text-xs text-gray-400 mt-1">{form.desc.length} characters</p>
+            </div>
+
+            {/* Historical Note */}
+            <div>
+              <label className="block text-sm font-bold mb-2 text-gray-700">Historical Note <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea value={form.history}
+                onChange={e => setForm({...form, history: e.target.value})}
+                placeholder="e.g. The bells were installed in 1892 and have rung every Sunday since..."
+                rows={2}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-900 text-sm resize-none" />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setView('list')}
+                className="flex-1 py-3 border border-gray-200 rounded-xl font-semibold text-gray-600 hover:bg-gray-50 transition">
+                Cancel
+              </button>
+              <button onClick={handleSave}
+                className="flex-1 py-3 bg-gradient-to-r from-blue-900 to-yellow-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:shadow-lg transition">
+                <Save size={16} /> {editItem ? 'Update Section' : 'Add Section'}
+              </button>
+            </div>
+          </div>
         </motion.div>
       )}
-      <div className="space-y-3">
-        {hotspots.map(h => (<div key={h.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-start gap-4"><div className="w-10 h-10 bg-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0"><MapPin size={18} className="text-white" /></div><div className="flex-1"><h3 className="font-bold text-gray-800">{h.name}</h3><p className="text-sm text-gray-500">{h.info}</p><p className="text-xs text-blue-600 mt-1">X={h.x}%, Y={h.y}%</p></div><div className="flex gap-2"><button onClick={() => openEdit(h)} className="p-2 hover:bg-blue-50 rounded-lg text-blue-600"><Edit3 size={16} /></button><button onClick={() => setHotspots(prev => prev.filter(x => x.id !== h.id))} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={16} /></button></div></div>))}
-      </div>
     </div>
   );
 };
+
 
 const AdminUploadPage = ({ homilies, setHomilies }) => {
   const [step, setStep] = useState(1);
@@ -1117,7 +1382,7 @@ const HomePage = ({ homilies, announcements, prayerCategories, catechismParts })
             { icon: '📚', label: 'Homilies', desc: `${homilies.length} homilies available`, color: 'from-blue-900 to-blue-700' },
             { icon: '🙏', label: 'Prayers', desc: `${prayerCategories.reduce((a, c) => a + c.prayers.length, 0)} prayers in ${prayerCategories.length} categories`, color: 'from-indigo-800 to-indigo-600' },
             { icon: '📖', label: 'Catechism', desc: `${catechismParts.reduce((a, p) => a + p.sections.reduce((b, s) => b + s.articles.length, 0), 0)} articles`, color: 'from-teal-800 to-teal-600' },
-            { icon: '🗺️', label: 'Virtual Tour', desc: 'Explore our church digitally', color: 'from-yellow-700 to-yellow-500' },
+            { icon: '⛪', label: '3D Church', desc: 'Explore our Basilica in 3D', color: 'from-yellow-700 to-yellow-500' },
           ].map((card, i) => (<motion.div key={i} whileHover={{ y: -4 }} className={`bg-gradient-to-br ${card.color} rounded-2xl p-5 text-white cursor-pointer shadow-lg hover:shadow-xl transition`}><div className="text-3xl mb-3">{card.icon}</div><h4 className="font-serif font-bold mb-1">{card.label}</h4><p className="text-white/70 text-xs">{card.desc}</p></motion.div>))}
         </div>
       </div>
@@ -1311,14 +1576,286 @@ const ClergyPage = ({ clergy }) => (
   </motion.div>
 );
 
-const VirtualTourPage = ({ hotspots }) => {
-  const [selected, setSelected] = useState(null);
+// ============================================================================
+// 3D BASILICA CHURCH MODEL — Coming Soon Placeholder
+// (Replace this component with the real 3D model when ready)
+// ============================================================================
+const BasilicaModel3D = () => {
+  const [pulse, setPulse] = React.useState(false);
+
+  React.useEffect(() => {
+    const t = setInterval(() => setPulse(p => !p), 1400);
+    return () => clearInterval(t);
+  }, []);
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-      <h2 className="text-3xl font-serif font-bold text-gray-800">Virtual Church Tour</h2>
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2"><div className="relative rounded-2xl overflow-hidden h-80 shadow-lg" style={{ background: 'linear-gradient(135deg, #1a3a52 0%, #2d5a7b 100%)' }}><div className="absolute inset-0 flex items-center justify-center"><p className="text-white/20 text-sm font-serif italic">360° Church View</p></div>{hotspots.map(h => (<motion.button key={h.id} onClick={() => setSelected(selected?.id === h.id ? null : h)} className={`absolute w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition ${selected?.id === h.id ? 'bg-yellow-400 scale-110' : 'bg-yellow-500 hover:bg-yellow-400'}`} style={{ left: `${h.x}%`, top: `${h.y}%`, transform: 'translate(-50%,-50%)' }} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}><MapPin size={20} className="text-white" /></motion.button>))}</div></div>
-        <div className="space-y-3"><h3 className="font-serif font-bold text-xl text-gray-800">Explore</h3>{hotspots.map(h => (<button key={h.id} onClick={() => setSelected(selected?.id === h.id ? null : h)} className={`w-full p-4 rounded-xl text-left font-semibold text-sm flex items-center gap-3 transition ${selected?.id === h.id ? 'bg-gradient-to-r from-blue-900 to-yellow-600 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}><MapPin size={16} /> {h.name}</button>))}<AnimatePresence>{selected && (<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2"><h4 className="font-serif font-bold text-blue-900">{selected.name}</h4><p className="text-sm text-gray-600">{selected.info}</p><p className="text-xs text-gray-500 italic">{selected.history}</p></motion.div>)}</AnimatePresence></div>
+    <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl"
+      style={{ background: 'linear-gradient(135deg, #0d2137 0%, #1a3a52 50%, #0d2137 100%)', minHeight: '340px' }}>
+
+      {/* Animated background grid */}
+      <div className="absolute inset-0 opacity-10" style={{
+        backgroundImage: 'linear-gradient(#d4af37 1px, transparent 1px), linear-gradient(90deg, #d4af37 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+      }} />
+
+      {/* Glow effect */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div style={{
+          width: '220px', height: '220px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(212,175,55,0.12) 0%, transparent 70%)',
+          transform: pulse ? 'scale(1.15)' : 'scale(1)',
+          transition: 'transform 1.4s ease-in-out',
+        }} />
+      </div>
+
+      {/* Corner decorations */}
+      {['top-3 left-3', 'top-3 right-3', 'bottom-3 left-3', 'bottom-3 right-3'].map((pos, i) => (
+        <div key={i} className={`absolute ${pos} w-6 h-6 border-yellow-500 opacity-50`}
+          style={{
+            borderTop:    i < 2 ? '2px solid' : 'none',
+            borderBottom: i >= 2 ? '2px solid' : 'none',
+            borderLeft:   i % 2 === 0 ? '2px solid' : 'none',
+            borderRight:  i % 2 === 1 ? '2px solid' : 'none',
+          }} />
+      ))}
+
+      {/* Main content */}
+      <div className="relative flex flex-col items-center justify-center py-16 px-6 text-center">
+
+        {/* Church icon with ring animation */}
+        <div className="relative mb-6">
+          <div style={{
+            position: 'absolute', inset: '-16px',
+            borderRadius: '50%',
+            border: '2px solid rgba(212,175,55,0.3)',
+            transform: pulse ? 'scale(1.1)' : 'scale(1)',
+            transition: 'transform 1.4s ease-in-out',
+          }} />
+          <div style={{
+            position: 'absolute', inset: '-28px',
+            borderRadius: '50%',
+            border: '1px solid rgba(212,175,55,0.15)',
+            transform: pulse ? 'scale(1.08)' : 'scale(0.95)',
+            transition: 'transform 1.4s ease-in-out',
+          }} />
+          <div className="w-20 h-20 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(212,175,55,0.15)', border: '2px solid rgba(212,175,55,0.4)' }}>
+            <span style={{ fontSize: '40px' }}>⛪</span>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-2xl font-serif font-bold text-white mb-2">
+          3D Basilica Model
+        </h3>
+        <div className="flex items-center gap-2 mb-4">
+          <div style={{
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: '#d4af37',
+            boxShadow: pulse ? '0 0 12px #d4af37' : '0 0 4px #d4af37',
+            transition: 'box-shadow 1.4s ease-in-out',
+          }} />
+          <span className="text-yellow-400 text-sm font-bold uppercase tracking-widest">
+            Under Development
+          </span>
+          <div style={{
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: '#d4af37',
+            boxShadow: pulse ? '0 0 12px #d4af37' : '0 0 4px #d4af37',
+            transition: 'box-shadow 1.4s ease-in-out',
+          }} />
+        </div>
+
+        <p className="text-blue-200 text-sm max-w-md leading-relaxed mb-8">
+          Our interactive 3D Basilica model is currently being developed. Soon you will be able to explore every sacred corner of our parish church in full 3D — rotate, zoom, and discover the beauty of our Basilica.
+        </p>
+
+        {/* Feature preview pills */}
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
+          {[
+            '🔄 Rotate 360°',
+            '🔍 Zoom In & Out',
+            '👆 Tap to Explore',
+            '🏛️ Full Interior View',
+            '🕯️ Sacred Locations',
+            '📱 Mobile Friendly',
+          ].map((feat, i) => (
+            <span key={i} className="text-xs px-3 py-1 rounded-full font-semibold"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(212,175,55,0.3)',
+                color: 'rgba(255,255,255,0.7)',
+              }}>
+              {feat}
+            </span>
+          ))}
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-64">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-blue-300 font-semibold">Development Progress</span>
+            <span className="text-yellow-400 font-bold">In Progress</span>
+          </div>
+          <div className="w-full rounded-full overflow-hidden" style={{ height: '6px', background: 'rgba(255,255,255,0.1)' }}>
+            <div className="h-full rounded-full"
+              style={{
+                width: '45%',
+                background: 'linear-gradient(90deg, #d4af37, #f0d060)',
+                boxShadow: '0 0 8px rgba(212,175,55,0.6)',
+              }} />
+          </div>
+          <p className="text-blue-300 text-xs mt-1 text-right opacity-70">Coming soon...</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CHURCH_PARTS = [
+  { id: 1, icon: '🔔', name: 'Bell Towers',   desc: 'The twin bell towers flank the main facade, each crowned with a pointed spire and a golden cross. The bells have called parishioners to worship for over a century.',                                           color: 'from-yellow-700 to-yellow-900' },
+  { id: 2, icon: '⛪', name: 'Main Facade',    desc: 'The grand front face of the Basilica features classical columns, a triangular pediment, a rose window, and the main arched entrance door decorated with sacred carvings.',                              color: 'from-blue-900 to-blue-700'   },
+  { id: 3, icon: '🏛️', name: 'Central Dome',   desc: 'The majestic central dome rises above the crossing of the nave and transept. Its ribbed structure and lantern crown with a golden cross are visible from across the town.',                                color: 'from-teal-800 to-teal-600'   },
+  { id: 4, icon: '🕍', name: 'Main Nave',      desc: 'The wide central nave leads worshippers toward the altar. Flanked by side aisles, the nave accommodates hundreds of parishioners during Mass. Stained glass windows line the upper clerestory.',         color: 'from-indigo-800 to-indigo-600' },
+  { id: 5, icon: '🌿', name: 'Side Aisles',    desc: 'The side aisles provide additional seating and contain the Stations of the Cross, side altars dedicated to patron saints, and confessional booths used by parishioners.',                                 color: 'from-green-800 to-green-600' },
+  { id: 6, icon: '🌀', name: 'Apse',           desc: 'The semicircular apse at the rear of the church houses the high altar and the tabernacle where the Blessed Sacrament is reserved. It is the most sacred area of the Basilica.',                         color: 'from-rose-800 to-rose-600'   },
+];
+
+const VirtualTourPage = () => {
+  const [selected, setSelected] = useState(null);
+  const [showControls, setShowControls] = useState(true);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setShowControls(false), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+
+      {/* ── Hero ── */}
+      <div className="relative bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 text-white px-6 py-12 overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-5 right-10 w-56 h-56 rounded-full bg-yellow-400 blur-3xl" />
+        </div>
+        <div className="relative max-w-4xl mx-auto text-center">
+          <div className="text-5xl mb-3">⛪</div>
+          <h2 className="text-4xl font-serif font-bold mb-2">3D Basilica Church Model</h2>
+          <p className="text-blue-200 text-base max-w-2xl mx-auto">Explore our parish church in an interactive 3D view. Rotate, zoom, and discover every sacred part of our Basilica.</p>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+        {/* ── 3D Canvas ── */}
+        <div className="relative bg-gradient-to-b from-blue-950 to-blue-900 rounded-2xl overflow-hidden shadow-2xl border border-blue-800">
+          <BasilicaModel3D />
+          {/* Controls hint */}
+          <AnimatePresence>
+            {showControls && (
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none"
+              >
+                <div className="bg-black/60 backdrop-blur text-white text-xs px-4 py-2 rounded-full flex items-center gap-3">
+                  <span>🖱️ Drag to rotate</span>
+                  <span>•</span>
+                  <span>🤏 Scroll to zoom</span>
+                  <span>•</span>
+                  <span>📱 Swipe on mobile</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {/* Label overlay */}
+          <div className="absolute top-3 left-3">
+            <span className="bg-yellow-600/80 backdrop-blur text-white text-xs font-bold px-3 py-1 rounded-full">
+              ⛪ VerbaSacra Parish Basilica
+            </span>
+          </div>
+          {/* Auto-rotate badge */}
+          <div className="absolute top-3 right-3">
+            <span className="bg-black/40 backdrop-blur text-white/70 text-xs px-2 py-1 rounded-full">
+              Auto-rotating
+            </span>
+          </div>
+        </div>
+
+        {/* ── Info Cards Grid ── */}
+        <div>
+          <h3 className="text-xl font-serif font-bold text-gray-800 mb-4">
+            Explore Church Sections
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {CHURCH_PARTS.map((part, i) => (
+              <motion.button
+                key={part.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.07 }}
+                whileHover={{ y: -3 }}
+                onClick={() => setSelected(selected?.id === part.id ? null : part)}
+                className={`relative overflow-hidden rounded-xl p-4 text-left transition shadow-sm
+                  ${selected?.id === part.id
+                    ? 'ring-2 ring-yellow-500 shadow-lg'
+                    : 'bg-white border border-gray-100 hover:shadow-md'}`}
+              >
+                {selected?.id === part.id && (
+                  <div className={`absolute inset-0 bg-gradient-to-br ${part.color} opacity-10`} />
+                )}
+                <div className="relative">
+                  <div className="text-2xl mb-2">{part.icon}</div>
+                  <p className={`font-serif font-bold text-sm leading-tight
+                    ${selected?.id === part.id ? 'text-blue-900' : 'text-gray-800'}`}>
+                    {part.name}
+                  </p>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Selected Part Detail ── */}
+        <AnimatePresence>
+          {selected && (
+            <motion.div
+              key={selected.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${selected.color} p-6 text-white shadow-xl`}
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+              <div className="relative flex items-start gap-4">
+                <div className="text-4xl flex-shrink-0">{selected.icon}</div>
+                <div>
+                  <h4 className="text-xl font-serif font-bold mb-2">{selected.name}</h4>
+                  <p className="text-white/85 text-sm leading-relaxed">{selected.desc}</p>
+                </div>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="absolute top-0 right-0 text-white/60 hover:text-white transition p-1"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Footer note ── */}
+        <div className="bg-gradient-to-r from-blue-50 to-yellow-50 rounded-2xl p-5 border border-yellow-200">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🕯️</span>
+            <div>
+              <p className="font-bold text-gray-800 mb-1">About Our Parish Basilica</p>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                This interactive 3D model represents our beautiful parish Basilica church. Explore each part of the church by clicking the section cards below the model. You can rotate the model by dragging and zoom using the scroll wheel or pinch gesture on mobile.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -1627,7 +2164,7 @@ const ParishionerDashboard = ({ onAdminLogin, homilies, announcements, clergy, h
     { id: 'archive', icon: BookOpen, label: 'Homilies' },
     { id: 'prayers', icon: Heart, label: 'Prayers' },
     { id: 'catechism', icon: Book, label: 'Catechism' },
-    { id: 'tour', icon: MapPin, label: 'Tour' },
+    { id: 'tour', icon: MapPin, label: '3D Church' },
     { id: 'announcements', icon: Megaphone, label: 'News' },
     { id: 'clergy', icon: Users, label: 'Clergy' },
   ];
@@ -1674,7 +2211,7 @@ const AdminDashboard = ({ admin, onLogout, homilies, setHomilies, announcements,
     { id: 'homilies', icon: BookOpen, label: 'Homilies' },
     { id: 'announcements', icon: Megaphone, label: 'Announcements' },
     { id: 'clergy', icon: Users, label: 'Clergy' },
-    { id: 'tour', icon: MapPin, label: 'Virtual Tour' },
+    { id: 'tour', icon: MapPin, label: '3D Church' },
     { id: 'prayers', icon: Heart, label: 'Prayers' },
     { id: 'catechism', icon: Book, label: 'Catechism' },
   ];
@@ -1703,7 +2240,7 @@ const AdminDashboard = ({ admin, onLogout, homilies, setHomilies, announcements,
             { icon: Heart, label: 'Manage Prayers', desc: 'Add categories and prayer texts', page: 'prayers', color: 'from-rose-700 to-rose-500' },
             { icon: Book, label: 'Manage Catechism', desc: 'Add parts, sections, and articles', page: 'catechism', color: 'from-teal-800 to-teal-600' },
             { icon: Users, label: 'Manage Clergy', desc: 'Add or update priest profiles', page: 'clergy', color: 'from-green-800 to-green-600' },
-            { icon: MapPin, label: 'Virtual Tour', desc: 'Add or move church hotspots', page: 'tour', color: 'from-purple-800 to-purple-600' },
+            { icon: MapPin, label: '3D Church Model', desc: 'Manage church section info cards', page: 'tour', color: 'from-purple-800 to-purple-600' },
           ].map((action, i) => { const Icon = action.icon; return (<button key={i} onClick={() => setCurrentPage(action.page)} className={`flex items-center gap-4 p-4 bg-gradient-to-r ${action.color} text-white rounded-xl hover:shadow-lg transition text-left`}><div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0"><Icon size={20} /></div><div><p className="font-bold text-sm">{action.label}</p><p className="text-white/70 text-xs mt-0.5">{action.desc}</p></div></button>); })}
         </div>
       </div>
